@@ -91,6 +91,7 @@ select {
 
   table {
     font-size: 14px;
+    margin: auto 5px;
   }
 
   th,
