@@ -25,6 +25,11 @@ h3 {
   color: #4c51bf;
   margin-bottom: 20px;
 }
+h4,
+label {
+  font-weight: bold;
+  text-align: center;
+}
 
 button {
   background-color: #7c3aed;
