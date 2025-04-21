@@ -52,7 +52,11 @@ function App() {
       <ToastContainer />
       {showSplash ? (
         <div className="splash-screen">
-          <img src="public/favicon.png" alt="Logo" className="splash-logo" />
+          <img
+            src="app-finanzas\public\favicon.png"
+            alt="Logo"
+            className="splash-logo"
+          />
         </div>
       ) : (
         <div className="container mt-5">
