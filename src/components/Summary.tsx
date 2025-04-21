@@ -192,7 +192,9 @@ const Summary: React.FC<SummaryProps> = ({
         <h4>
           Ingresos
           <button
-            className="btn btn-link btn-sm ms-2"
+            className={`btn btn-sm ms-2 ${
+              mostrarDetalleIngresos ? "btn-danger" : "btn-warning"
+            }`}
             onClick={() => setMostrarDetalleIngresos(!mostrarDetalleIngresos)}
           >
             {mostrarDetalleIngresos ? "Ocultar detalle" : "Mostrar detalle"}
@@ -311,7 +313,9 @@ const Summary: React.FC<SummaryProps> = ({
         <h4>
           Costos
           <button
-            className="btn btn-link btn-sm ms-2"
+            className={`btn btn-sm ms-2 ${
+              mostrarDetalleCostos ? "btn-danger" : "btn-warning"
+            }`}
             onClick={() => setMostrarDetalleCostos(!mostrarDetalleCostos)}
           >
             {mostrarDetalleCostos ? "Ocultar detalle" : "Mostrar detalle"}
