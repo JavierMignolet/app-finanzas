@@ -71,3 +71,29 @@ select {
   justify-content: center;
   flex-wrap: wrap;
 }
+
+.splash-screen {
+  background-color: #1e2a38; /* o el color que prefieras */
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+.splash-logo {
+  max-width: 70%;
+  height: auto;
+  animation: fadeInZoom 1s ease-in-out;
+}
+
+@keyframes fadeInZoom {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

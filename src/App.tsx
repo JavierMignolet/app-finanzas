@@ -4,6 +4,7 @@ import IncomeForm from "./components/IncomeForm";
 import Summary from "./components/Summary";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import "./App.css";
 
 export interface Transaction {
   id: string;
@@ -19,6 +20,15 @@ function App() {
   );
   const [costs, setCosts] = useState<Transaction[]>([]);
   const [incomes, setIncomes] = useState<Transaction[]>([]);
+  const [showSplash, setShowSplash] = useState(true);
+
+  // Splash inicial
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowSplash(false);
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Cargar datos desde localStorage al iniciar
   useEffect(() => {
@@ -38,54 +48,62 @@ function App() {
   }, [incomes]);
 
   return (
-    <div className="container mt-5">
+    <div className="container-fluid p-0">
       <ToastContainer />
-      {view === "home" && (
-        <div className="text-center">
-          <h1>Bienvenido</h1>
-          <button
-            className="btn btn-primary m-2"
-            onClick={() => setView("cost")}
-          >
-            Agregar Costos
-          </button>
-          <button
-            className="btn btn-success m-2"
-            onClick={() => setView("income")}
-          >
-            Agregar Ingresos
-          </button>
-          <button
-            className="btn btn-secondary m-2"
-            onClick={() => setView("summary")}
-          >
-            Ver Resumen
-          </button>
+      {showSplash ? (
+        <div className="splash-screen">
+          <img src="/logo.png" alt="Logo" className="splash-logo" />
         </div>
-      )}
+      ) : (
+        <div className="container mt-5">
+          {view === "home" && (
+            <div className="text-center">
+              <h1>Bienvenido</h1>
+              <button
+                className="btn btn-primary m-2"
+                onClick={() => setView("cost")}
+              >
+                Agregar Costos
+              </button>
+              <button
+                className="btn btn-success m-2"
+                onClick={() => setView("income")}
+              >
+                Agregar Ingresos
+              </button>
+              <button
+                className="btn btn-secondary m-2"
+                onClick={() => setView("summary")}
+              >
+                Ver Resumen
+              </button>
+            </div>
+          )}
 
-      {view === "cost" && (
-        <CostForm
-          setCosts={setCosts}
-          costs={costs}
-          goBack={() => setView("home")}
-        />
-      )}
-      {view === "income" && (
-        <IncomeForm
-          setIncomes={setIncomes}
-          incomes={incomes}
-          goBack={() => setView("home")}
-        />
-      )}
-      {view === "summary" && (
-        <Summary
-          costs={costs}
-          incomes={incomes}
-          goBack={() => setView("home")}
-          setCosts={setCosts}
-          setIncomes={setIncomes}
-        />
+          {view === "cost" && (
+            <CostForm
+              setCosts={setCosts}
+              costs={costs}
+              goBack={() => setView("home")}
+            />
+          )}
+          {view === "income" && (
+            <IncomeForm
+              setIncomes={setIncomes}
+              incomes={incomes}
+              goBack={() => setView("home")}
+            />
+          )}
+          {view === "summary" && (
+            <Summary
+              costs={costs}
+              incomes={incomes}
+              goBack={() => setView("home")}
+              setCosts={setCosts}
+              setIncomes={setIncomes}
+            />
+          )}
+        </div>
       )}
     </div>
   );
