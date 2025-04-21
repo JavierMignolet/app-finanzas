@@ -98,7 +98,7 @@ select {
 }
 
 .splash-logo {
-  max-width: 70%;
+  max-width: 100%;
   height: auto;
   animation: fadeInZoom 1s ease-in-out;
 }
