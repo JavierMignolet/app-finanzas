@@ -200,14 +200,22 @@ const Summary: React.FC<SummaryProps> = ({
           Exportar PDF
         </button>
       </div>
-      {!showAllMonths && (
-        <button
-          className="btn btn-warning"
-          onClick={() => setShowAllMonths(true)}
-        >
-          Cargar todos los datos...
-        </button>
-      )}
+
+      <button
+        className={`btn ${showAllMonths ? "btn-secondary" : "btn-warning"}`}
+        onClick={() => {
+          if (showAllMonths) {
+            setFilterType("");
+            setFilterStartDate("");
+            setFilterEndDate("");
+          }
+          setShowAllMonths(!showAllMonths);
+        }}
+      >
+        {showAllMonths
+          ? "Ocultar meses anteriores"
+          : "Cargar todos los datos..."}
+      </button>
 
       <div ref={summaryRef}>
         {/* Ingresos */}
