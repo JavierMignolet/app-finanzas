@@ -422,6 +422,7 @@ const Summary: React.FC<SummaryProps> = ({
               <th>Ingresos (mes)</th>
               <th>Costos (mes)</th>
               <th>Beneficio Bruto</th>
+              <th>Saldo mes anterior</th>
               <th>Saldo mes actual</th>
               <th>Saldo acumulado</th>
             </tr>
@@ -430,7 +431,7 @@ const Summary: React.FC<SummaryProps> = ({
             <tr>
               <td>${totalIncomes.toFixed(2)}</td>
               <td>${totalCosts.toFixed(2)}</td>
-
+              <td>${beneficioBruto.toFixed(2)}</td>
               <td>${prevBalance.toFixed(2)}</td>
               <td>${balance.toFixed(2)}</td>
               <td>${totalBalanceAcumulado.toFixed(2)}</td>
