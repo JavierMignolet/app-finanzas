@@ -1,8 +1,8 @@
 import React, { useState, useRef } from "react";
 import { Transaction } from "../types";
-import { toast } from "react-toastify";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import { toast } from "react-toastify";
 
 interface SummaryProps {
   costs: Transaction[];
@@ -19,12 +19,10 @@ const Summary: React.FC<SummaryProps> = ({
   setCosts,
   setIncomes,
 }) => {
-  // Filtros
   const [filterType, setFilterType] = useState("");
   const [filterStartDate, setFilterStartDate] = useState("");
   const [filterEndDate, setFilterEndDate] = useState("");
-
-  // Edición
+  const [showAllMonths, setShowAllMonths] = useState(false);
   const [editing, setEditing] = useState<{
     type: "income" | "cost";
     index: number;
@@ -37,22 +35,65 @@ const Summary: React.FC<SummaryProps> = ({
     monto: 0,
   });
 
-  // Mostrar detalle
-  const [mostrarDetalleIngresos, setMostrarDetalleIngresos] = useState(false);
-  const [mostrarDetalleCostos, setMostrarDetalleCostos] = useState(false);
-
   const summaryRef = useRef<HTMLDivElement>(null);
 
-  // Formatear fecha a dd-mm-aa
-  const formatDate = (fechaStr: string): string => {
-    const fecha = new Date(fechaStr);
-    const day = String(fecha.getDate()).padStart(2, "0");
-    const month = String(fecha.getMonth() + 1).padStart(2, "0");
-    const year = String(fecha.getFullYear()).slice(-2);
-    return `${day}-${month}-${year}`;
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
+
+  const isCurrentMonth = (dateStr: string): boolean => {
+    const [year, month] = dateStr.split("-");
+    return (
+      parseInt(month) - 1 === currentMonth && parseInt(year) === currentYear
+    );
   };
 
-  // Edición handlers
+  const isPreviousMonth = (fecha: string) => {
+    const date = new Date(fecha);
+    const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+    const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+    return date.getMonth() === prevMonth && date.getFullYear() === prevYear;
+  };
+
+  const shouldInclude = (t: Transaction) => {
+    const inDateRange =
+      (!filterStartDate || t.fecha >= filterStartDate) &&
+      (!filterEndDate || t.fecha <= filterEndDate);
+    const typeMatch = !filterType || t.tipo === filterType;
+    return typeMatch && inDateRange;
+  };
+
+  const filteredIncomes = incomes.filter(
+    (c) => shouldInclude(c) && (showAllMonths || isCurrentMonth(c.fecha))
+  );
+  const filteredCosts = costs.filter(
+    (c) => shouldInclude(c) && (showAllMonths || isCurrentMonth(c.fecha))
+  );
+
+  const previousIncomes = incomes.filter(
+    (i) => isPreviousMonth(i.fecha) && shouldInclude(i)
+  );
+  const previousCosts = costs.filter(
+    (c) => isPreviousMonth(c.fecha) && shouldInclude(c)
+  );
+
+  const totalIncomes = filteredIncomes.reduce((sum, i) => sum + i.monto, 0);
+  const totalCosts = filteredCosts.reduce((sum, c) => sum + c.monto, 0);
+  const balance = totalIncomes - totalCosts;
+
+  const prevBalance =
+    previousIncomes.reduce((sum, i) => sum + i.monto, 0) -
+    previousCosts.reduce((sum, c) => sum + c.monto, 0);
+
+  const totalBalanceAcumulado = balance + prevBalance;
+
+  const beneficioBruto =
+    incomes
+      .filter((i) => i.tipo === "ingreso bruto" && shouldInclude(i))
+      .reduce((sum, i) => sum + i.monto, 0) -
+    costs
+      .filter((c) => c.tipo === "Variable" && shouldInclude(c))
+      .reduce((sum, c) => sum + c.monto, 0);
+
   const handleEdit = (
     type: "income" | "cost",
     index: number,
@@ -61,65 +102,33 @@ const Summary: React.FC<SummaryProps> = ({
     setEditing({ type, index });
     setEditData(data);
   };
+
   const handleSaveEdit = () => {
     if (!editing) return;
+    const updated = editing.type === "income" ? [...incomes] : [...costs];
+    updated[editing.index] = editData;
+
     if (editing.type === "income") {
-      const updated = [...incomes];
-      updated[editing.index] = editData;
       setIncomes(updated);
-      toast.success("Ingreso modificado correctamente");
+      toast.success("Ingreso actualizado");
     } else {
-      const updated = [...costs];
-      updated[editing.index] = editData;
       setCosts(updated);
-      toast.success("Costo modificado correctamente");
+      toast.success("Costo actualizado");
     }
+
     setEditing(null);
   };
+
   const handleDelete = (type: "income" | "cost", index: number) => {
     if (type === "income") {
       setIncomes(incomes.filter((_, i) => i !== index));
-      toast.success("Ingreso eliminado correctamente");
+      toast.success("Ingreso eliminado");
     } else {
       setCosts(costs.filter((_, i) => i !== index));
-      toast.success("Costo eliminado correctamente");
+      toast.success("Costo eliminado");
     }
   };
 
-  // Limpiar filtros
-  const limpiarFiltros = () => {
-    setFilterType("");
-    setFilterStartDate("");
-    setFilterEndDate("");
-  };
-
-  // Filtrar por rango de fechas
-  const filtrarPorFecha = (fecha: string) => {
-    const date = new Date(fecha);
-    const start = filterStartDate ? new Date(filterStartDate) : null;
-    const end = filterEndDate ? new Date(filterEndDate) : null;
-    return (!start || date >= start) && (!end || date <= end);
-  };
-
-  const filteredIncomes = incomes.filter(
-    (i) => (!filterType || i.tipo === filterType) && filtrarPorFecha(i.fecha)
-  );
-  const filteredCosts = costs.filter(
-    (c) => (!filterType || c.tipo === filterType) && filtrarPorFecha(c.fecha)
-  );
-  const totalIncomes = filteredIncomes.reduce((sum, i) => sum + i.monto, 0);
-  const totalCosts = filteredCosts.reduce((sum, c) => sum + c.monto, 0);
-  const balance = totalIncomes - totalCosts;
-
-  const beneficioBruto =
-    filteredIncomes
-      .filter((i) => i.tipo === "ingreso bruto")
-      .reduce((sum, i) => sum + i.monto, 0) -
-    filteredCosts
-      .filter((c) => c.tipo === "Variable")
-      .reduce((sum, c) => sum + c.monto, 0);
-
-  // Exportar PDF
   const exportPDF = () => {
     if (!summaryRef.current) return;
     html2canvas(summaryRef.current).then((canvas) => {
@@ -138,7 +147,6 @@ const Summary: React.FC<SummaryProps> = ({
     <div className="container mt-4">
       <h2>Resumen General</h2>
 
-      {/* Filtros */}
       <div className="row mb-3">
         <div className="col">
           <label>Desde</label>
@@ -175,31 +183,36 @@ const Summary: React.FC<SummaryProps> = ({
       </div>
 
       <div className="mb-3">
-        <button className="btn btn-secondary me-2" onClick={limpiarFiltros}>
+        <button
+          className="btn btn-secondary me-2"
+          onClick={() => {
+            setFilterType("");
+            setFilterStartDate("");
+            setFilterEndDate("");
+          }}
+        >
           Limpiar Filtros
         </button>
         <button className="btn btn-primary me-2" onClick={goBack}>
           Volver
         </button>
-        <button className="btn btn-success" onClick={exportPDF}>
+        <button className="btn btn-success me-2" onClick={exportPDF}>
           Exportar PDF
         </button>
       </div>
+      {!showAllMonths && (
+        <button
+          className="btn btn-warning"
+          onClick={() => setShowAllMonths(true)}
+        >
+          Cargar todos los datos...
+        </button>
+      )}
 
-      {/* Contenido exportable */}
       <div ref={summaryRef}>
         {/* Ingresos */}
-        <h4>
-          Ingresos
-          <button
-            className={`btn btn-sm ms-2 ${
-              mostrarDetalleIngresos ? "btn-danger" : "btn-warning"
-            }`}
-            onClick={() => setMostrarDetalleIngresos(!mostrarDetalleIngresos)}
-          >
-            {mostrarDetalleIngresos ? "Ocultar detalle" : "Mostrar detalle"}
-          </button>
-        </h4>
+        <h4>Ingresos</h4>
+
         <table className="table table-bordered">
           <thead>
             <tr>
@@ -211,116 +224,97 @@ const Summary: React.FC<SummaryProps> = ({
             </tr>
           </thead>
           <tbody>
-            {mostrarDetalleIngresos ? (
-              filteredIncomes.map((income, idx) => (
-                <tr key={income.id}>
-                  <td>
-                    {editing?.type === "income" && editing.index === idx ? (
-                      <input
-                        type="date"
-                        value={editData.fecha}
-                        onChange={(e) =>
-                          setEditData({ ...editData, fecha: e.target.value })
-                        }
-                      />
-                    ) : (
-                      formatDate(income.fecha)
-                    )}
-                  </td>
-                  <td>
-                    {editing?.type === "income" && editing.index === idx ? (
-                      <input
-                        type="text"
-                        value={editData.tipo}
-                        onChange={(e) =>
-                          setEditData({ ...editData, tipo: e.target.value })
-                        }
-                      />
-                    ) : (
-                      income.tipo
-                    )}
-                  </td>
-                  <td>
-                    {editing?.type === "income" && editing.index === idx ? (
-                      <input
-                        type="text"
-                        value={editData.descripcion}
-                        onChange={(e) =>
-                          setEditData({
-                            ...editData,
-                            descripcion: e.target.value,
-                          })
-                        }
-                      />
-                    ) : (
-                      income.descripcion
-                    )}
-                  </td>
-                  <td>
-                    {editing?.type === "income" && editing.index === idx ? (
-                      <input
-                        type="number"
-                        value={editData.monto}
-                        onChange={(e) =>
-                          setEditData({
-                            ...editData,
-                            monto: Number(e.target.value),
-                          })
-                        }
-                      />
-                    ) : (
-                      income.monto
-                    )}
-                  </td>
-                  <td>
-                    {editing?.type === "income" && editing.index === idx ? (
+            {filteredIncomes.map((i, idx) => (
+              <tr key={i.id}>
+                <td>
+                  {editing?.type === "income" && editing.index === idx ? (
+                    <input
+                      type="date"
+                      value={editData.fecha}
+                      onChange={(e) =>
+                        setEditData({ ...editData, fecha: e.target.value })
+                      }
+                    />
+                  ) : (
+                    i.fecha
+                  )}
+                </td>
+                <td>
+                  {editing?.type === "income" && editing.index === idx ? (
+                    <input
+                      value={editData.tipo}
+                      onChange={(e) =>
+                        setEditData({ ...editData, tipo: e.target.value })
+                      }
+                    />
+                  ) : (
+                    i.tipo
+                  )}
+                </td>
+                <td>
+                  {editing?.type === "income" && editing.index === idx ? (
+                    <input
+                      value={editData.descripcion}
+                      onChange={(e) =>
+                        setEditData({
+                          ...editData,
+                          descripcion: e.target.value,
+                        })
+                      }
+                    />
+                  ) : (
+                    i.descripcion
+                  )}
+                </td>
+                <td>
+                  {editing?.type === "income" && editing.index === idx ? (
+                    <input
+                      type="number"
+                      value={editData.monto}
+                      onChange={(e) =>
+                        setEditData({
+                          ...editData,
+                          monto: parseFloat(e.target.value),
+                        })
+                      }
+                    />
+                  ) : (
+                    `$${i.monto.toFixed(2)}`
+                  )}
+                </td>
+                <td>
+                  {editing?.type === "income" && editing.index === idx ? (
+                    <button
+                      className="btn btn-success btn-sm"
+                      onClick={handleSaveEdit}
+                    >
+                      Guardar
+                    </button>
+                  ) : (
+                    <>
                       <button
-                        className="btn btn-success btn-sm"
-                        onClick={handleSaveEdit}
+                        className="btn btn-warning btn-sm me-2"
+                        onClick={() => handleEdit("income", idx, i)}
                       >
-                        Guardar
+                        Editar
                       </button>
-                    ) : (
-                      <>
-                        <button
-                          className="btn btn-warning btn-sm me-2"
-                          onClick={() => handleEdit("income", idx, income)}
-                        >
-                          Editar
-                        </button>
-                        <button
-                          className="btn btn-danger btn-sm"
-                          onClick={() => handleDelete("income", idx)}
-                        >
-                          Eliminar
-                        </button>
-                      </>
-                    )}
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={5} className="text-end fw-bold">
-                  Total Ingresos: ${totalIncomes.toFixed(2)}
+                      <button
+                        className="btn btn-danger btn-sm"
+                        onClick={() => handleDelete("income", idx)}
+                      >
+                        Eliminar
+                      </button>
+                    </>
+                  )}
                 </td>
               </tr>
-            )}
+            ))}
           </tbody>
         </table>
 
         {/* Costos */}
-        <h4>
-          Costos
-          <button
-            className={`btn btn-sm ms-2 ${
-              mostrarDetalleCostos ? "btn-danger" : "btn-warning"
-            }`}
-            onClick={() => setMostrarDetalleCostos(!mostrarDetalleCostos)}
-          >
-            {mostrarDetalleCostos ? "Ocultar detalle" : "Mostrar detalle"}
-          </button>
-        </h4>
+        <h4>Costos</h4>
+
         <table className="table table-bordered">
           <thead>
             <tr>
@@ -332,121 +326,114 @@ const Summary: React.FC<SummaryProps> = ({
             </tr>
           </thead>
           <tbody>
-            {mostrarDetalleCostos ? (
-              filteredCosts.map((cost, idx) => (
-                <tr key={cost.id}>
-                  <td>
-                    {editing?.type === "cost" && editing.index === idx ? (
-                      <input
-                        type="date"
-                        value={editData.fecha}
-                        onChange={(e) =>
-                          setEditData({ ...editData, fecha: e.target.value })
-                        }
-                      />
-                    ) : (
-                      formatDate(cost.fecha)
-                    )}
-                  </td>
-                  <td>
-                    {editing?.type === "cost" && editing.index === idx ? (
-                      <input
-                        type="text"
-                        value={editData.tipo}
-                        onChange={(e) =>
-                          setEditData({ ...editData, tipo: e.target.value })
-                        }
-                      />
-                    ) : (
-                      cost.tipo
-                    )}
-                  </td>
-                  <td>
-                    {editing?.type === "cost" && editing.index === idx ? (
-                      <input
-                        type="text"
-                        value={editData.descripcion}
-                        onChange={(e) =>
-                          setEditData({
-                            ...editData,
-                            descripcion: e.target.value,
-                          })
-                        }
-                      />
-                    ) : (
-                      cost.descripcion
-                    )}
-                  </td>
-                  <td>
-                    {editing?.type === "cost" && editing.index === idx ? (
-                      <input
-                        type="number"
-                        value={editData.monto}
-                        onChange={(e) =>
-                          setEditData({
-                            ...editData,
-                            monto: Number(e.target.value),
-                          })
-                        }
-                      />
-                    ) : (
-                      cost.monto
-                    )}
-                  </td>
-                  <td>
-                    {editing?.type === "cost" && editing.index === idx ? (
+            {filteredCosts.map((c, idx) => (
+              <tr key={c.id}>
+                <td>
+                  {editing?.type === "cost" && editing.index === idx ? (
+                    <input
+                      type="date"
+                      value={editData.fecha}
+                      onChange={(e) =>
+                        setEditData({ ...editData, fecha: e.target.value })
+                      }
+                    />
+                  ) : (
+                    c.fecha
+                  )}
+                </td>
+                <td>
+                  {editing?.type === "cost" && editing.index === idx ? (
+                    <input
+                      value={editData.tipo}
+                      onChange={(e) =>
+                        setEditData({ ...editData, tipo: e.target.value })
+                      }
+                    />
+                  ) : (
+                    c.tipo
+                  )}
+                </td>
+                <td>
+                  {editing?.type === "cost" && editing.index === idx ? (
+                    <input
+                      value={editData.descripcion}
+                      onChange={(e) =>
+                        setEditData({
+                          ...editData,
+                          descripcion: e.target.value,
+                        })
+                      }
+                    />
+                  ) : (
+                    c.descripcion
+                  )}
+                </td>
+                <td>
+                  {editing?.type === "cost" && editing.index === idx ? (
+                    <input
+                      type="number"
+                      value={editData.monto}
+                      onChange={(e) =>
+                        setEditData({
+                          ...editData,
+                          monto: parseFloat(e.target.value),
+                        })
+                      }
+                    />
+                  ) : (
+                    `$${c.monto.toFixed(2)}`
+                  )}
+                </td>
+                <td>
+                  {editing?.type === "cost" && editing.index === idx ? (
+                    <button
+                      className="btn btn-success btn-sm"
+                      onClick={handleSaveEdit}
+                    >
+                      Guardar
+                    </button>
+                  ) : (
+                    <>
                       <button
-                        className="btn btn-success btn-sm"
-                        onClick={handleSaveEdit}
+                        className="btn btn-warning btn-sm me-2"
+                        onClick={() => handleEdit("cost", idx, c)}
                       >
-                        Guardar
+                        Editar
                       </button>
-                    ) : (
-                      <>
-                        <button
-                          className="btn btn-warning btn-sm me-2"
-                          onClick={() => handleEdit("cost", idx, cost)}
-                        >
-                          Editar
-                        </button>
-                        <button
-                          className="btn btn-danger btn-sm"
-                          onClick={() => handleDelete("cost", idx)}
-                        >
-                          Eliminar
-                        </button>
-                      </>
-                    )}
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={5} className="text-end fw-bold">
-                  Total Costos: ${totalCosts.toFixed(2)}
+                      <button
+                        className="btn btn-danger btn-sm"
+                        onClick={() => handleDelete("cost", idx)}
+                      >
+                        Eliminar
+                      </button>
+                    </>
+                  )}
                 </td>
               </tr>
-            )}
+            ))}
           </tbody>
         </table>
 
         {/* Totales */}
-        <h4>Resumen de Totales</h4>
+        <h4>Totales</h4>
         <table className="table table-bordered">
           <thead>
             <tr>
-              <th>Total Ingresos</th>
-              <th>Total Costos</th>
+              <th>Ingresos (mes)</th>
+              <th>Costos (mes)</th>
               <th>Beneficio Bruto</th>
-              <th>Balance</th>
+              <th>Saldo mes actual</th>
+              <th>Saldo acumulado</th>
             </tr>
           </thead>
           <tbody>
             <tr>
               <td>${totalIncomes.toFixed(2)}</td>
               <td>${totalCosts.toFixed(2)}</td>
-              <td>${beneficioBruto.toFixed(2)}</td>
+
+              <td>${prevBalance.toFixed(2)}</td>
               <td>${balance.toFixed(2)}</td>
+              <td>${totalBalanceAcumulado.toFixed(2)}</td>
             </tr>
           </tbody>
         </table>

@@ -60,7 +60,6 @@ const IncomeForm: React.FC<IncomeFormProps> = ({
           onChange={(e) => setTipo(e.target.value)}
         >
           <option value="ingreso bruto">Ingreso Bruto</option>
-          <option value="ingreso neto">Ingreso Neto</option>
         </select>
       </div>
       <div className="mb-3">
