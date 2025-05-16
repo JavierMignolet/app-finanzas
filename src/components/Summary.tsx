@@ -23,6 +23,9 @@ const Summary: React.FC<SummaryProps> = ({
   const [filterStartDate, setFilterStartDate] = useState("");
   const [filterEndDate, setFilterEndDate] = useState("");
   const [showAllMonths, setShowAllMonths] = useState(false);
+  const [mostrarDetalleIngresos, setMostrarDetalleIngresos] = useState(false);
+  const [mostrarDetalleCostos, setMostrarDetalleCostos] = useState(false);
+
   const [editing, setEditing] = useState<{
     type: "income" | "cost";
     index: number;
@@ -63,36 +66,39 @@ const Summary: React.FC<SummaryProps> = ({
   };
 
   const filteredIncomes = incomes.filter(
-    (c) => shouldInclude(c) && (showAllMonths || isCurrentMonth(c.fecha))
+    (t) => shouldInclude(t) && (showAllMonths || isCurrentMonth(t.fecha))
   );
   const filteredCosts = costs.filter(
-    (c) => shouldInclude(c) && (showAllMonths || isCurrentMonth(c.fecha))
+    (t) => shouldInclude(t) && (showAllMonths || isCurrentMonth(t.fecha))
   );
 
   const previousIncomes = incomes.filter(
-    (i) => isPreviousMonth(i.fecha) && shouldInclude(i)
+    (t) => isPreviousMonth(t.fecha) && shouldInclude(t)
   );
   const previousCosts = costs.filter(
-    (c) => isPreviousMonth(c.fecha) && shouldInclude(c)
+    (t) => isPreviousMonth(t.fecha) && shouldInclude(t)
   );
 
   const totalIncomes = filteredIncomes.reduce((sum, i) => sum + i.monto, 0);
   const totalCosts = filteredCosts.reduce((sum, c) => sum + c.monto, 0);
   const balance = totalIncomes - totalCosts;
 
+  const totalVariableCosts = costs
+    .filter(
+      (c) =>
+        c.tipo === "Variable" &&
+        shouldInclude(c) &&
+        (showAllMonths || isCurrentMonth(c.fecha))
+    )
+    .reduce((sum, c) => sum + c.monto, 0);
+
+  const beneficioBrutoActual = totalIncomes - totalVariableCosts;
+
   const prevBalance =
     previousIncomes.reduce((sum, i) => sum + i.monto, 0) -
     previousCosts.reduce((sum, c) => sum + c.monto, 0);
 
   const totalBalanceAcumulado = balance + prevBalance;
-
-  const beneficioBruto =
-    incomes
-      .filter((i) => i.tipo === "ingreso bruto" && shouldInclude(i))
-      .reduce((sum, i) => sum + i.monto, 0) -
-    costs
-      .filter((c) => c.tipo === "Variable" && shouldInclude(c))
-      .reduce((sum, c) => sum + c.monto, 0);
 
   const handleEdit = (
     type: "income" | "cost",
@@ -147,6 +153,7 @@ const Summary: React.FC<SummaryProps> = ({
     <div className="container mt-4">
       <h2>Resumen General</h2>
 
+      {/* Filtros */}
       <div className="row mb-3">
         <div className="col">
           <label>Desde</label>
@@ -173,7 +180,7 @@ const Summary: React.FC<SummaryProps> = ({
             value={filterType}
             onChange={(e) => setFilterType(e.target.value)}
           >
-            <option value="">Todos los tipos</option>
+            <option value="">Todos</option>
             <option value="Fijo">Costo Fijo</option>
             <option value="Variable">Costo Variable</option>
             <option value="ingreso bruto">Ingreso Bruto</option>
@@ -182,6 +189,7 @@ const Summary: React.FC<SummaryProps> = ({
         </div>
       </div>
 
+      {/* Acciones */}
       <div className="mb-3">
         <button
           className="btn btn-secondary me-2"
@@ -189,6 +197,7 @@ const Summary: React.FC<SummaryProps> = ({
             setFilterType("");
             setFilterStartDate("");
             setFilterEndDate("");
+            setShowAllMonths(false);
           }}
         >
           Limpiar Filtros
@@ -199,28 +208,29 @@ const Summary: React.FC<SummaryProps> = ({
         <button className="btn btn-success me-2" onClick={exportPDF}>
           Exportar PDF
         </button>
+        <button
+          className={`btn ${showAllMonths ? "btn-secondary" : "btn-warning"}`}
+          onClick={() => setShowAllMonths(!showAllMonths)}
+        >
+          {showAllMonths
+            ? "Ocultar meses anteriores"
+            : "Cargar todos los datos..."}
+        </button>
       </div>
 
-      <button
-        className={`btn ${showAllMonths ? "btn-secondary" : "btn-warning"}`}
-        onClick={() => {
-          if (showAllMonths) {
-            setFilterType("");
-            setFilterStartDate("");
-            setFilterEndDate("");
-          }
-          setShowAllMonths(!showAllMonths);
-        }}
-      >
-        {showAllMonths
-          ? "Ocultar meses anteriores"
-          : "Cargar todos los datos..."}
-      </button>
-
       <div ref={summaryRef}>
-        {/* Ingresos */}
-        <h4>Ingresos</h4>
-
+        {/* INGRESOS */}
+        <h4>
+          Ingresos
+          <button
+            className={`btn btn-sm ms-2 ${
+              mostrarDetalleIngresos ? "btn-danger" : "btn-warning"
+            }`}
+            onClick={() => setMostrarDetalleIngresos(!mostrarDetalleIngresos)}
+          >
+            {mostrarDetalleIngresos ? "Ocultar detalle" : "Mostrar detalle"}
+          </button>
+        </h4>
         <table className="table table-bordered">
           <thead>
             <tr>
@@ -232,97 +242,114 @@ const Summary: React.FC<SummaryProps> = ({
             </tr>
           </thead>
           <tbody>
-            {filteredIncomes.map((i, idx) => (
-              <tr key={i.id}>
-                <td>
-                  {editing?.type === "income" && editing.index === idx ? (
-                    <input
-                      type="date"
-                      value={editData.fecha}
-                      onChange={(e) =>
-                        setEditData({ ...editData, fecha: e.target.value })
-                      }
-                    />
-                  ) : (
-                    i.fecha
-                  )}
-                </td>
-                <td>
-                  {editing?.type === "income" && editing.index === idx ? (
-                    <input
-                      value={editData.tipo}
-                      onChange={(e) =>
-                        setEditData({ ...editData, tipo: e.target.value })
-                      }
-                    />
-                  ) : (
-                    i.tipo
-                  )}
-                </td>
-                <td>
-                  {editing?.type === "income" && editing.index === idx ? (
-                    <input
-                      value={editData.descripcion}
-                      onChange={(e) =>
-                        setEditData({
-                          ...editData,
-                          descripcion: e.target.value,
-                        })
-                      }
-                    />
-                  ) : (
-                    i.descripcion
-                  )}
-                </td>
-                <td>
-                  {editing?.type === "income" && editing.index === idx ? (
-                    <input
-                      type="number"
-                      value={editData.monto}
-                      onChange={(e) =>
-                        setEditData({
-                          ...editData,
-                          monto: parseFloat(e.target.value),
-                        })
-                      }
-                    />
-                  ) : (
-                    `$${i.monto.toFixed(2)}`
-                  )}
-                </td>
-                <td>
-                  {editing?.type === "income" && editing.index === idx ? (
-                    <button
-                      className="btn btn-success btn-sm"
-                      onClick={handleSaveEdit}
-                    >
-                      Guardar
-                    </button>
-                  ) : (
-                    <>
+            {mostrarDetalleIngresos ? (
+              filteredIncomes.map((i, idx) => (
+                <tr key={i.id}>
+                  <td>
+                    {editing?.type === "income" && editing.index === idx ? (
+                      <input
+                        type="date"
+                        value={editData.fecha}
+                        onChange={(e) =>
+                          setEditData({ ...editData, fecha: e.target.value })
+                        }
+                      />
+                    ) : (
+                      i.fecha
+                    )}
+                  </td>
+                  <td>
+                    {editing?.type === "income" && editing.index === idx ? (
+                      <input
+                        value={editData.tipo}
+                        onChange={(e) =>
+                          setEditData({ ...editData, tipo: e.target.value })
+                        }
+                      />
+                    ) : (
+                      i.tipo
+                    )}
+                  </td>
+                  <td>
+                    {editing?.type === "income" && editing.index === idx ? (
+                      <input
+                        value={editData.descripcion}
+                        onChange={(e) =>
+                          setEditData({
+                            ...editData,
+                            descripcion: e.target.value,
+                          })
+                        }
+                      />
+                    ) : (
+                      i.descripcion
+                    )}
+                  </td>
+                  <td>
+                    {editing?.type === "income" && editing.index === idx ? (
+                      <input
+                        type="number"
+                        value={editData.monto}
+                        onChange={(e) =>
+                          setEditData({
+                            ...editData,
+                            monto: parseFloat(e.target.value),
+                          })
+                        }
+                      />
+                    ) : (
+                      `$${i.monto.toFixed(2)}`
+                    )}
+                  </td>
+                  <td>
+                    {editing?.type === "income" && editing.index === idx ? (
                       <button
-                        className="btn btn-warning btn-sm me-2"
-                        onClick={() => handleEdit("income", idx, i)}
+                        className="btn btn-success btn-sm"
+                        onClick={handleSaveEdit}
                       >
-                        Editar
+                        Guardar
                       </button>
-                      <button
-                        className="btn btn-danger btn-sm"
-                        onClick={() => handleDelete("income", idx)}
-                      >
-                        Eliminar
-                      </button>
-                    </>
-                  )}
+                    ) : (
+                      <>
+                        <button
+                          className="btn btn-warning btn-sm me-2"
+                          onClick={() => handleEdit("income", idx, i)}
+                        >
+                          Editar
+                        </button>
+                        <button
+                          className="btn btn-danger btn-sm"
+                          onClick={() => handleDelete("income", idx)}
+                        >
+                          Eliminar
+                        </button>
+                      </>
+                    )}
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={5} className="text-end fw-bold">
+                  Total Ingresos: ${totalIncomes.toFixed(2)}
                 </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
 
-        {/* Costos */}
-        <h4>Costos</h4>
-
+        {/* COSTOS */}
+        <h4>
+          Costos
+          <button
+            className={`btn btn-sm ms-2 ${
+              mostrarDetalleCostos ? "btn-danger" : "btn-warning"
+            }`}
+            onClick={() => setMostrarDetalleCostos(!mostrarDetalleCostos)}
+          >
+            {mostrarDetalleCostos ? "Ocultar detalle" : "Mostrar detalle"}
+          </button>
+        </h4>
         <table className="table table-bordered">
           <thead>
             <tr>
@@ -334,95 +361,103 @@ const Summary: React.FC<SummaryProps> = ({
             </tr>
           </thead>
           <tbody>
-            {filteredCosts.map((c, idx) => (
-              <tr key={c.id}>
-                <td>
-                  {editing?.type === "cost" && editing.index === idx ? (
-                    <input
-                      type="date"
-                      value={editData.fecha}
-                      onChange={(e) =>
-                        setEditData({ ...editData, fecha: e.target.value })
-                      }
-                    />
-                  ) : (
-                    c.fecha
-                  )}
-                </td>
-                <td>
-                  {editing?.type === "cost" && editing.index === idx ? (
-                    <input
-                      value={editData.tipo}
-                      onChange={(e) =>
-                        setEditData({ ...editData, tipo: e.target.value })
-                      }
-                    />
-                  ) : (
-                    c.tipo
-                  )}
-                </td>
-                <td>
-                  {editing?.type === "cost" && editing.index === idx ? (
-                    <input
-                      value={editData.descripcion}
-                      onChange={(e) =>
-                        setEditData({
-                          ...editData,
-                          descripcion: e.target.value,
-                        })
-                      }
-                    />
-                  ) : (
-                    c.descripcion
-                  )}
-                </td>
-                <td>
-                  {editing?.type === "cost" && editing.index === idx ? (
-                    <input
-                      type="number"
-                      value={editData.monto}
-                      onChange={(e) =>
-                        setEditData({
-                          ...editData,
-                          monto: parseFloat(e.target.value),
-                        })
-                      }
-                    />
-                  ) : (
-                    `$${c.monto.toFixed(2)}`
-                  )}
-                </td>
-                <td>
-                  {editing?.type === "cost" && editing.index === idx ? (
-                    <button
-                      className="btn btn-success btn-sm"
-                      onClick={handleSaveEdit}
-                    >
-                      Guardar
-                    </button>
-                  ) : (
-                    <>
+            {mostrarDetalleCostos ? (
+              filteredCosts.map((c, idx) => (
+                <tr key={c.id}>
+                  <td>
+                    {editing?.type === "cost" && editing.index === idx ? (
+                      <input
+                        type="date"
+                        value={editData.fecha}
+                        onChange={(e) =>
+                          setEditData({ ...editData, fecha: e.target.value })
+                        }
+                      />
+                    ) : (
+                      c.fecha
+                    )}
+                  </td>
+                  <td>
+                    {editing?.type === "cost" && editing.index === idx ? (
+                      <input
+                        value={editData.tipo}
+                        onChange={(e) =>
+                          setEditData({ ...editData, tipo: e.target.value })
+                        }
+                      />
+                    ) : (
+                      c.tipo
+                    )}
+                  </td>
+                  <td>
+                    {editing?.type === "cost" && editing.index === idx ? (
+                      <input
+                        value={editData.descripcion}
+                        onChange={(e) =>
+                          setEditData({
+                            ...editData,
+                            descripcion: e.target.value,
+                          })
+                        }
+                      />
+                    ) : (
+                      c.descripcion
+                    )}
+                  </td>
+                  <td>
+                    {editing?.type === "cost" && editing.index === idx ? (
+                      <input
+                        type="number"
+                        value={editData.monto}
+                        onChange={(e) =>
+                          setEditData({
+                            ...editData,
+                            monto: parseFloat(e.target.value),
+                          })
+                        }
+                      />
+                    ) : (
+                      `$${c.monto.toFixed(2)}`
+                    )}
+                  </td>
+                  <td>
+                    {editing?.type === "cost" && editing.index === idx ? (
                       <button
-                        className="btn btn-warning btn-sm me-2"
-                        onClick={() => handleEdit("cost", idx, c)}
+                        className="btn btn-success btn-sm"
+                        onClick={handleSaveEdit}
                       >
-                        Editar
+                        Guardar
                       </button>
-                      <button
-                        className="btn btn-danger btn-sm"
-                        onClick={() => handleDelete("cost", idx)}
-                      >
-                        Eliminar
-                      </button>
-                    </>
-                  )}
+                    ) : (
+                      <>
+                        <button
+                          className="btn btn-warning btn-sm me-2"
+                          onClick={() => handleEdit("cost", idx, c)}
+                        >
+                          Editar
+                        </button>
+                        <button
+                          className="btn btn-danger btn-sm"
+                          onClick={() => handleDelete("cost", idx)}
+                        >
+                          Eliminar
+                        </button>
+                      </>
+                    )}
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={5} className="text-end fw-bold">
+                  Total Costos: ${totalCosts.toFixed(2)}
                 </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
 
-        {/* Totales */}
+        {/* TOTALES */}
         <h4>Totales</h4>
         <table className="table table-bordered">
           <thead>
@@ -430,18 +465,14 @@ const Summary: React.FC<SummaryProps> = ({
               <th>Ingresos (mes)</th>
               <th>Costos (mes)</th>
               <th>Beneficio Bruto</th>
-              <th>Saldo mes anterior</th>
-              <th>Saldo mes actual</th>
-              <th>Saldo acumulado</th>
+              <th>Balance Acumulado</th>
             </tr>
           </thead>
           <tbody>
             <tr>
               <td>${totalIncomes.toFixed(2)}</td>
               <td>${totalCosts.toFixed(2)}</td>
-              <td>${beneficioBruto.toFixed(2)}</td>
-              <td>${prevBalance.toFixed(2)}</td>
-              <td>${balance.toFixed(2)}</td>
+              <td>${beneficioBrutoActual.toFixed(2)}</td>
               <td>${totalBalanceAcumulado.toFixed(2)}</td>
             </tr>
           </tbody>
