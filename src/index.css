@@ -88,10 +88,39 @@ select {
   gap: 10px;
 }
 
-
-
 /* Responsive para pantallas pequeñas */
 @media (max-width: 600px) {
+  body {
+    padding: 10px;
+  }
+
+  table {
+    font-size: 14px;
+    margin: auto 15px;
+  }
+
+  th,
+  td {
+    padding: 8px;
+  }
+
+  button {
+    width: 100%;
+    max-width: 300px;
+  }
+
+  input,
+  select {
+    width: 100%;
+  }
+
+  .row {
+    flex-direction: column;
+    align-items: center;
+  }
+}
+
+@media (max-width: 480px) {
   body {
     padding: 10px;
   }
