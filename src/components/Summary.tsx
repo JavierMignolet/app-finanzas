@@ -92,13 +92,13 @@ const Summary: React.FC<SummaryProps> = ({
     )
     .reduce((sum, c) => sum + c.monto, 0);
 
-  const beneficioBrutoActual = totalIncomes - totalVariableCosts;
-
   const prevBalance =
     previousIncomes.reduce((sum, i) => sum + i.monto, 0) -
     previousCosts.reduce((sum, c) => sum + c.monto, 0);
 
   const totalBalanceAcumulado = balance + prevBalance;
+
+  const beneficioBrutoActual = totalIncomes - totalVariableCosts + prevBalance;
 
   const handleEdit = (
     type: "income" | "cost",
